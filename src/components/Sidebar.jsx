@@ -10,7 +10,8 @@ const colorSchemes = [
 
 export default function Sidebar({ 
   wishlistCount, view, onViewChange,
-  showWishlist, onShowWishlistChange
+  showWishlist, onShowWishlistChange,
+  onExportData, onImportData
 }) {
   const [isDark, setIsDark] = useState(() => {
     return localStorage.getItem('chaos-box-theme-mode') === 'dark';
@@ -189,6 +190,48 @@ export default function Sidebar({
               />
             ))}
           </div>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+          <button
+            onClick={onExportData}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 600,
+              border: '2px solid #888',
+              background: 'transparent',
+              color: '#666',
+              cursor: 'pointer'
+            }}
+          >
+            📤 导出
+          </button>
+          <label
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 600,
+              border: '2px solid #888',
+              background: 'transparent',
+              color: '#666',
+              cursor: 'pointer',
+              textAlign: 'center',
+              display: 'block'
+            }}
+          >
+            📥 导入
+            <input
+              type="file"
+              accept=".json"
+              onChange={onImportData}
+              style={{ display: 'none' }}
+            />
+          </label>
         </div>
       </div>
     </aside>

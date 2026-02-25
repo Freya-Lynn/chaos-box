@@ -5,6 +5,8 @@ import RecordModal from './components/RecordModal';
 
 const STORAGE_KEY = 'chaos-box-records';
 const TAG_COLORS_KEY = 'chaos-box-tag-colors';
+const VAULT_DATA_KEY = 'chaos-box-vault';
+const VAULT_CONFIG_KEY = 'chaos-box-vault-config';
 
 function App() {
   const [records, setRecords] = useState([]);
@@ -116,6 +118,52 @@ function App() {
     setModalOpen(true);
   };
 
+  const handleExportData = () => {
+    const data = {
+      records: JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'),
+      tagColors: JSON.parse(localStorage.getItem(TAG_COLORS_KEY) || '{}'),
+      vaultData: localStorage.getItem(VAULT_DATA_KEY) || null,
+      vaultConfig: localStorage.getItem(VAULT_CONFIG_KEY) || null,
+      exportedAt: Date.now()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chaos-box-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportData = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        if (data.records) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.records));
+          setRecords(data.records);
+        }
+        if (data.tagColors) {
+          localStorage.setItem(TAG_COLORS_KEY, JSON.stringify(data.tagColors));
+          setTagColors(data.tagColors);
+        }
+        if (data.vaultData) {
+          localStorage.setItem(VAULT_DATA_KEY, data.vaultData);
+        }
+        if (data.vaultConfig) {
+          localStorage.setItem(VAULT_CONFIG_KEY, data.vaultConfig);
+        }
+        alert('导入成功！请刷新页面。');
+      } catch (err) {
+        alert('导入失败，文件格式不正确。');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="app-container">
       <Sidebar
@@ -124,6 +172,8 @@ function App() {
         onViewChange={setView}
         showWishlist={showWishlist}
         onShowWishlistChange={setShowWishlist}
+        onExportData={handleExportData}
+        onImportData={handleImportData}
       />
       
       <MainContent
