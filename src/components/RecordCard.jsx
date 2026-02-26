@@ -71,6 +71,23 @@ export default function RecordCard({ record, onEdit, onDelete, tagColors, onTogg
           </div>
         )}
 
+        {record.attachments && record.attachments.length > 0 && (
+          <div className="record-attachments" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+            {record.attachments.map((file, idx) => (
+              <a
+                key={idx}
+                href={file.data}
+                download={file.name}
+                onClick={(e) => e.stopPropagation()}
+                style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', gap: '8px', background: '#f5f5f5', borderRadius: '8px', textDecoration: 'none', color: '#333' }}
+              >
+                <span style={{ fontSize: '16px' }}>{file.icon}</span>
+                <span style={{ flex: 1, fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+              </a>
+            ))}
+          </div>
+        )}
+
         {record.tags && record.tags.length > 0 && (
           <div className="record-tags">
             {record.tags.map((tag, idx) => (

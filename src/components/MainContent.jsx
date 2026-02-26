@@ -10,6 +10,8 @@ export default function MainContent({
   activeTag,
   onActiveTagChange,
   allTags,
+  tagHierarchy,
+  parentTagList,
   showWishlist,
   onAddClick,
   onEdit,
@@ -54,6 +56,8 @@ export default function MainContent({
       {view !== 'vault' && allTags.length > 0 && (
         <TagBar
           tags={allTags}
+          tagHierarchy={tagHierarchy}
+          parentTagList={parentTagList}
           activeTag={activeTag}
           onTagClick={onActiveTagChange}
         />

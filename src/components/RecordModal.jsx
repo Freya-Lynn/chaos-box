@@ -12,10 +12,11 @@ const FONTS = [
   { id: 'huiwen', name: '汇文正楷', family: '"JingNanFangKaoTi", cursive' },
 ];
 
-export default function RecordModal({ record, allTags, tagColors, onSave, onClose }) {
+export default function RecordModal({ record, allTags, tagHierarchy, parentTagList, tagColors, onSave, onClose }) {
   const [text, setText] = useState(record?.text || '');
   const [images, setImages] = useState(record?.images || []);
   const [audios, setAudios] = useState(record?.audios || []);
+  const [attachments, setAttachments] = useState(record?.attachments || []);
   const [selectedTags, setSelectedTags] = useState(record?.tags || []);
   const [tagInput, setTagInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -29,6 +30,7 @@ export default function RecordModal({ record, allTags, tagColors, onSave, onClos
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const attachmentInputRef = useRef(null);
   const editorRef = useRef(null);
 
   useEffect(() => {
@@ -158,6 +160,41 @@ export default function RecordModal({ record, allTags, tagColors, onSave, onClos
     setAudios(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleAttachmentUpload = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const fileType = file.name.split('.').pop().toLowerCase();
+        const fileIcon = {
+          'pdf': '📄',
+          'doc': '📝', 'docx': '📝',
+          'xls': '📊', 'xlsx': '📊',
+          'ppt': '📽️', 'pptx': '📽️',
+          'txt': '📃',
+          'epub': '📚',
+          'zip': '📦', 'rar': '📦',
+          'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️',
+          'mp3': '🎵', 'wav': '🎵', 'mp4': '🎬', 'avi': '🎬'
+        }[fileType] || '📎';
+        
+        setAttachments(prev => [...prev, {
+          name: file.name,
+          type: fileType,
+          data: event.target.result,
+          icon: fileIcon,
+          size: file.size
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removeAttachment = (index) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const addTag = (tag) => {
     const trimmedTag = tag.trim();
     if (trimmedTag && !selectedTags.includes(trimmedTag)) {
@@ -180,7 +217,7 @@ export default function RecordModal({ record, allTags, tagColors, onSave, onClos
   const handleSave = () => {
     const editorText = editorRef.current?.innerHTML || '';
     const plainText = editorRef.current?.innerText || '';
-    if (!plainText.trim() && images.length === 0 && audios.length === 0) {
+    if (!plainText.trim() && images.length === 0 && audios.length === 0 && attachments.length === 0) {
       alert('请至少添加一些内容');
       return;
     }
@@ -189,6 +226,7 @@ export default function RecordModal({ record, allTags, tagColors, onSave, onClos
       text: editorText,
       images,
       audios,
+      attachments,
       tags: selectedTags,
       isWishlist,
       urgency: showUrgency ? urgency : 0,
@@ -225,6 +263,9 @@ export default function RecordModal({ record, allTags, tagColors, onSave, onClos
               <button type="button" className={fontSize === 2 ? 'active' : ''} onClick={() => handleFontSize(2)} title="中字">A<sup style={{fontSize:10}}>14</sup></button>
               <button type="button" className={fontSize === 3 ? 'active' : ''} onClick={() => handleFontSize(3)} title="大字">A<sup style={{fontSize:10}}>18</sup></button>
               <button type="button" className={fontSize === 4 ? 'active' : ''} onClick={() => handleFontSize(4)} title="超大">A<sup style={{fontSize:10}}>24</sup></button>
+              <div className="toolbar-divider"></div>
+              <button type="button" title="有序列表 (1. 2. 3.)" onClick={() => execCommand('insertOrderedList')} style={{ width: '28px', height: '28px', fontWeight: 600 }}>1.</button>
+              <button type="button" title="无序列表 (•)" onClick={() => execCommand('insertUnorderedList')} style={{ width: '28px', height: '28px', fontWeight: 600 }}>•</button>
               <div className="toolbar-divider"></div>
               <select 
                 className="font-select"
@@ -308,6 +349,36 @@ export default function RecordModal({ record, allTags, tagColors, onSave, onClos
           </div>
 
           <div className="form-group">
+            <label>附件</label>
+            <div className="upload-area" onClick={() => attachmentInputRef.current?.click()}>
+              <div className="icon">📎</div>
+              <p>点击上传附件 (PDF, Word, Excel, EPUB等)</p>
+            </div>
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.epub,.zip,.rar"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleAttachmentUpload}
+            />
+            {attachments.length > 0 && (
+              <div className="attachment-list" style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {attachments.map((file, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: '#f5f5f5', borderRadius: '8px' }}>
+                    <span style={{ fontSize: '16px' }}>{file.icon}</span>
+                    <span style={{ flex: 1, fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                    <button
+                      onClick={() => removeAttachment(idx)}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#888' }}
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
             <label className={`wishlist-toggle ${isWishlist ? 'checked' : ''}`}>
               <input 
                 type="checkbox" 
@@ -362,27 +433,61 @@ export default function RecordModal({ record, allTags, tagColors, onSave, onClos
             <div className="tag-input-area">
               <input
                 className="tag-input"
-                placeholder="输入标签，按回车添加"
+                placeholder="输入标签名，按回车添加"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleTagKeyDown}
               />
-              {allTags.filter(t => !selectedTags.includes(t)).slice(0, 5).map(tag => (
-                <button
-                  key={tag}
-                  className={`tag ${`tag-color-${tagColors[tag] ?? 0}`}`}
-                  onClick={() => addTag(tag)}
-                >
-                  + {tag}
-                </button>
-              ))}
             </div>
+            
+            {parentTagList && parentTagList.length > 0 && (
+              <div className="tag-suggestions">
+                {parentTagList.map(parentTag => (
+                  <div key={parentTag} className="tag-parent-group" style={{ marginBottom: '8px' }}>
+                    <button
+                      className={`tag ${selectedTags.includes(parentTag) ? 'active' : ''} tag-color-${tagColors[parentTag] ?? 0}`}
+                      onClick={() => {
+                        if (selectedTags.includes(parentTag)) {
+                          removeTag(parentTag);
+                        } else {
+                          addTag(parentTag);
+                        }
+                      }}
+                      style={{ fontWeight: 600, marginBottom: '4px' }}
+                    >
+                      {selectedTags.includes(parentTag) ? '✓ ' : '+ '}{parentTag}
+                    </button>
+                    {tagHierarchy && tagHierarchy[parentTag] && tagHierarchy[parentTag].length > 0 && (
+                      <div style={{ marginLeft: '12px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {tagHierarchy[parentTag].map(childTag => (
+                          <button
+                            key={childTag}
+                            className={`tag ${selectedTags.includes(childTag) ? 'active' : ''} tag-color-${tagColors[childTag] ?? 0}`}
+                            onClick={() => {
+                              if (selectedTags.includes(childTag)) {
+                                removeTag(childTag);
+                              } else {
+                                addTag(childTag);
+                              }
+                            }}
+                            style={{ fontSize: '11px', padding: '2px 8px' }}
+                          >
+                            {selectedTags.includes(childTag) ? '✓ ' : '+ '}{childTag.split('/')[1]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
             {selectedTags.length > 0 && (
               <div className="selected-tags">
                 {selectedTags.map((tag, idx) => (
                   <span
                     key={idx}
-                    className={`selected-tag ${`tag-color-${tagColors[tag] ?? Math.floor(Math.random() * 8)}`}`}
+                    className={`selected-tag tag-color-${tagColors[tag] ?? Math.floor(Math.random() * 8)}`}
                   >
                     {tag}
                     <span className="remove" onClick={() => removeTag(tag)}>✕</span>

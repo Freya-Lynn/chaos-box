@@ -48,6 +48,33 @@ function App() {
   }, [tagColors, isLoaded]);
 
   const allTags = [...new Set(records.flatMap(r => r.tags || []))];
+  
+  const getTagHierarchy = (tags) => {
+    const hierarchy = {};
+    const parentTags = [];
+    
+    tags.forEach(tag => {
+      if (tag.includes('/')) {
+        const [parent, child] = tag.split('/');
+        if (!hierarchy[parent]) {
+          hierarchy[parent] = [];
+          parentTags.push(parent);
+        }
+        hierarchy[parent].push(tag);
+      } else {
+        if (!hierarchy[tag]) {
+          hierarchy[tag] = [];
+        }
+        if (!parentTags.includes(tag)) {
+          parentTags.push(tag);
+        }
+      }
+    });
+    
+    return { hierarchy, parentTags };
+  };
+  
+  const { hierarchy: tagHierarchy, parentTags: parentTagList } = getTagHierarchy(allTags);
 
   const filteredRecords = records
     .filter(record => {
@@ -113,6 +140,34 @@ function App() {
     return tagColors[tag] ?? Math.floor(Math.random() * 8);
   };
 
+  const handleEditTag = (oldTag, newTag) => {
+    if (!newTag || newTag === oldTag) return;
+    setRecords(prev => prev.map(r => ({
+      ...r,
+      tags: r.tags ? r.tags.map(t => t === oldTag ? newTag : t) : []
+    })));
+    if (tagColors[oldTag] !== undefined) {
+      const newTagColors = { ...tagColors };
+      newTagColors[newTag] = newTagColors[oldTag];
+      delete newTagColors[oldTag];
+      setTagColors(newTagColors);
+    }
+  };
+
+  const handleDeleteTag = (tag) => {
+    if (!confirm(`确定要删除标签 "${tag}" 吗？`)) return;
+    setRecords(prev => prev.map(r => ({
+      ...r,
+      tags: r.tags ? r.tags.filter(t => t !== tag) : []
+    })));
+    const newTagColors = { ...tagColors };
+    delete newTagColors[tag];
+    setTagColors(newTagColors);
+    if (activeTag === tag) {
+      setActiveTag(null);
+    }
+  };
+
   const handleAddClick = () => {
     setEditingRecord(null);
     setModalOpen(true);
@@ -174,6 +229,12 @@ function App() {
         onShowWishlistChange={setShowWishlist}
         onExportData={handleExportData}
         onImportData={handleImportData}
+        tagHierarchy={tagHierarchy}
+        parentTagList={parentTagList}
+        activeTag={activeTag}
+        onTagClick={setActiveTag}
+        onEditTag={handleEditTag}
+        onDeleteTag={handleDeleteTag}
       />
       
       <MainContent
@@ -184,6 +245,8 @@ function App() {
         activeTag={activeTag}
         onActiveTagChange={setActiveTag}
         allTags={allTags}
+        tagHierarchy={tagHierarchy}
+        parentTagList={parentTagList}
         showWishlist={showWishlist}
         onAddClick={handleAddClick}
         onEdit={handleEdit}
@@ -197,6 +260,8 @@ function App() {
         <RecordModal
           record={editingRecord}
           allTags={allTags}
+          tagHierarchy={tagHierarchy}
+          parentTagList={parentTagList}
           tagColors={tagColors}
           onSave={handleSaveRecord}
           onClose={() => {
