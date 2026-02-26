@@ -756,6 +756,7 @@ button:focus-visible {
   background: var(--card-bg);
   border: 3px solid var(--highlight);
   border-radius: 16px;
+  pointer-events: auto;
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
