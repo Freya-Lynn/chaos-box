@@ -529,23 +529,58 @@ export default function RecordModal({ record, allTags, tagColors, onSave, onClos
             </div>
             
             {allTags && allTags.length > 0 && (
-              <div className="tag-suggestions" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
-                {allTags.map(tag => (
-                  <button
-                    key={tag}
-                    className={`tag ${selectedTags.includes(tag) ? 'active' : ''} tag-color-${tagColors[tag] ?? Math.floor(Math.random() * 8)}`}
-                    onClick={() => {
-                      if (selectedTags.includes(tag)) {
-                        removeTag(tag);
-                      } else {
-                        addTag(tag);
-                      }
-                    }}
-                    style={{ fontSize: '11px', padding: '2px 8px' }}
-                  >
-                    {selectedTags.includes(tag) ? '✓ ' : '+ '}{tag}
-                  </button>
-                ))}
+              <div className="tag-suggestions" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px', maxHeight: '150px', overflowY: 'auto' }}>
+                {(() => {
+                  const buildTree = (tags) => {
+                    const tree = {};
+                    tags.forEach(tag => {
+                      const parts = tag.split('/');
+                      let current = tree;
+                      parts.forEach((part, idx) => {
+                        if (!current[part]) current[part] = { _tags: [] };
+                        if (idx === parts.length - 1) current[part]._tags.push(tag);
+                        current = current[part];
+                      });
+                    });
+                    return tree;
+                  };
+                  const renderTree = (node, level = 0) => {
+                    return Object.entries(node).map(([key, value]) => {
+                      if (key.startsWith('_')) return null;
+                      const hasChildren = Object.keys(value).some(k => !k.startsWith('_'));
+                      const marginLeft = level * 12;
+                      return (
+                        <div key={key + level} style={{ marginLeft }}>
+                          <button
+                            key={key}
+                            className={`tag ${selectedTags.includes(value._tags[0]) ? 'active' : ''}`}
+                            onClick={() => {
+                              if (selectedTags.includes(value._tags[0])) {
+                                removeTag(value._tags[0]);
+                              } else {
+                                addTag(value._tags[0]);
+                              }
+                            }}
+                            style={{ 
+                              fontSize: level === 0 ? '12px' : '11px', 
+                              padding: '4px 10px',
+                              marginBottom: '2px',
+                              background: selectedTags.includes(value._tags[0]) ? 'var(--highlight)' : '#f0f0f0',
+                              color: selectedTags.includes(value._tags[0]) ? 'white' : '#666',
+                              border: 'none',
+                              borderRadius: '12px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {level === 0 ? '📁' : '📄'} {key}
+                          </button>
+                          {hasChildren && renderTree(value, level + 1)}
+                        </div>
+                      );
+                    });
+                  };
+                  return renderTree(buildTree(allTags));
+                })()}
               </div>
             )}
             

@@ -49,12 +49,23 @@ export default function Sidebar({
       if (key.startsWith('_')) return null;
       
       const hasChildren = Object.keys(value).some(k => !k.startsWith('_'));
-      const marginLeft = level * 20;
-      const fontSize = level === 0 ? 13 : Math.max(11, 13 - level);
+      const marginLeft = level * 16;
+      const isActive = activeTag === (value._tags?.[0] || key);
+      const tagColor = scheme.tagColors ? scheme.tagColors[Math.abs(key.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % scheme.tagColors.length] : 'var(--highlight)';
       
       return (
-        <div key={key + level}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+        <div key={key + level} style={{ marginBottom: '2px' }}>
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '4px',
+              marginLeft: marginLeft > 0 ? marginLeft : 0
+            }}
+          >
+            {level > 0 && (
+              <span style={{ color: '#aaa', fontSize: '10px' }}>├</span>
+            )}
             <button
               onClick={() => onTagClick && onTagClick(value._tags?.[0] || key)}
               style={{
@@ -62,20 +73,40 @@ export default function Sidebar({
                 alignItems: 'center',
                 gap: '6px',
                 flex: 1,
-                padding: '8px 10px',
+                padding: '8px 12px',
                 borderRadius: '8px',
-                fontSize: fontSize,
+                fontSize: level === 0 ? 13 : 12,
                 fontWeight: level === 0 ? 600 : 400,
-                background: activeTag === (value._tags?.[0] || key) ? 'var(--highlight)' : 'transparent',
-                color: activeTag === (value._tags?.[0] || key) ? 'white' : '#444',
-                border: 'none',
+                background: isActive ? 'var(--highlight)' : 'transparent',
+                color: isActive ? 'white' : (level === 0 ? '#333' : '#666'),
+                border: isActive ? 'none' : '1px solid transparent',
                 cursor: 'pointer',
                 textAlign: 'left',
-                marginLeft
+                transition: 'all 0.2s',
+                boxShadow: isActive ? '0 2px 8px rgba(255,139,167,0.3)' : 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.target.style.background = tagColor + '20';
+                  e.target.style.borderColor = tagColor + '40';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.target.style.background = 'transparent';
+                  e.target.style.borderColor = 'transparent';
+                }
               }}
             >
-              {level === 0 ? '📁 ' : '📄 '}
-              {key}
+              {level === 0 ? '📁' : '📄'}
+              <span style={{ 
+                flex: 1, 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {key}
+              </span>
             </button>
           </div>
           {hasChildren && renderTree(value, level + 1)}
@@ -85,6 +116,7 @@ export default function Sidebar({
   };
 
   const tree = buildTree(allTags || []);
+  const scheme = colorSchemes[currentScheme] || colorSchemes[0];
 
   useEffect(() => {
     const scheme = colorSchemes[currentScheme];
@@ -211,9 +243,33 @@ export default function Sidebar({
       </nav>
 
       {allTags && allTags.length > 0 && view !== 'vault' && (
-        <div style={{ padding: '12px', overflow: 'auto', flex: 1 }}>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: '#888', marginBottom: '8px', padding: '0 4px' }}>
-            标签
+        <div style={{ 
+          padding: '12px', 
+          overflow: 'auto', 
+          flex: 1,
+          borderTop: '2px solid var(--border-main)'
+        }}>
+          <div style={{ 
+            fontSize: '12px', 
+            fontWeight: 600, 
+            color: '#888', 
+            marginBottom: '12px', 
+            padding: '0 4px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            🏷️ 标签
+            <span style={{ 
+              fontSize: '10px', 
+              background: 'var(--highlight)', 
+              color: 'white',
+              padding: '2px 6px',
+              borderRadius: '10px',
+              fontWeight: 400
+            }}>
+              {allTags.length}
+            </span>
           </div>
           {renderTree(tree)}
         </div>
