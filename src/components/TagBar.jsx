@@ -1,8 +1,10 @@
-export default function TagBar({ tags, tagHierarchy, parentTagList, activeTag, onTagClick }) {
+export default function TagBar({ tags, activeTag, onTagClick }) {
   const getTagIndex = (tag) => {
     const hash = tag.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
     return hash % 8;
   };
+
+  const topLevelTags = tags ? tags.filter(t => !t.includes('/')) : [];
 
   return (
     <div className="tag-bar">
@@ -11,7 +13,6 @@ export default function TagBar({ tags, tagHierarchy, parentTagList, activeTag, o
         onClick={() => onTagClick(null)}
         style={{
           borderColor: '#999',
-          color: '#666',
           background: activeTag === null ? '#666' : 'transparent',
           color: activeTag === null ? 'white' : '#666'
         }}
@@ -19,13 +20,13 @@ export default function TagBar({ tags, tagHierarchy, parentTagList, activeTag, o
         全部
       </button>
       
-      {parentTagList && parentTagList.map((parentTag, idx) => (
+      {topLevelTags.map((tag) => (
         <button
-          key={parentTag}
-          className={`tag tag-color-${getTagIndex(parentTag)} ${activeTag === parentTag ? 'active' : ''}`}
-          onClick={() => onTagClick(parentTag)}
+          key={tag}
+          className={`tag tag-color-${getTagIndex(tag)} ${activeTag === tag ? 'active' : ''}`}
+          onClick={() => onTagClick(tag)}
         >
-          {parentTag}
+          {tag}
         </button>
       ))}
     </div>

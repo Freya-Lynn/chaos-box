@@ -26,13 +26,17 @@ function App() {
   };
 
   useEffect(() => {
-    const savedRecords = localStorage.getItem(STORAGE_KEY);
-    const savedTagColors = localStorage.getItem(TAG_COLORS_KEY);
-    if (savedRecords) {
-      setRecords(JSON.parse(savedRecords));
-    }
-    if (savedTagColors) {
-      setTagColors(JSON.parse(savedTagColors));
+    try {
+      const savedRecords = localStorage.getItem(STORAGE_KEY);
+      const savedTagColors = localStorage.getItem(TAG_COLORS_KEY);
+      if (savedRecords) {
+        setRecords(JSON.parse(savedRecords));
+      }
+      if (savedTagColors) {
+        setTagColors(JSON.parse(savedTagColors));
+      }
+    } catch (e) {
+      console.error('Failed to load data:', e);
     }
     setIsLoaded(true);
   }, []);
@@ -50,31 +54,18 @@ function App() {
   const allTags = [...new Set(records.flatMap(r => r.tags || []))];
   
   const getTagHierarchy = (tags) => {
-    const hierarchy = {};
-    const parentTags = [];
+    const root = {};
+    const allPaths = [];
     
     tags.forEach(tag => {
-      if (tag.includes('/')) {
-        const [parent, child] = tag.split('/');
-        if (!hierarchy[parent]) {
-          hierarchy[parent] = [];
-          parentTags.push(parent);
-        }
-        hierarchy[parent].push(tag);
-      } else {
-        if (!hierarchy[tag]) {
-          hierarchy[tag] = [];
-        }
-        if (!parentTags.includes(tag)) {
-          parentTags.push(tag);
-        }
-      }
+      const parts = tag.split('/');
+      allPaths.push({ full: tag, parts });
     });
     
-    return { hierarchy, parentTags };
+    return { allPaths };
   };
   
-  const { hierarchy: tagHierarchy, parentTags: parentTagList } = getTagHierarchy(allTags);
+  const { allPaths: tagAllPaths } = getTagHierarchy(allTags);
 
   const filteredRecords = records
     .filter(record => {
@@ -229,8 +220,7 @@ function App() {
         onShowWishlistChange={setShowWishlist}
         onExportData={handleExportData}
         onImportData={handleImportData}
-        tagHierarchy={tagHierarchy}
-        parentTagList={parentTagList}
+        allTags={allTags}
         activeTag={activeTag}
         onTagClick={setActiveTag}
         onEditTag={handleEditTag}
@@ -245,8 +235,6 @@ function App() {
         activeTag={activeTag}
         onActiveTagChange={setActiveTag}
         allTags={allTags}
-        tagHierarchy={tagHierarchy}
-        parentTagList={parentTagList}
         showWishlist={showWishlist}
         onAddClick={handleAddClick}
         onEdit={handleEdit}
@@ -260,8 +248,6 @@ function App() {
         <RecordModal
           record={editingRecord}
           allTags={allTags}
-          tagHierarchy={tagHierarchy}
-          parentTagList={parentTagList}
           tagColors={tagColors}
           onSave={handleSaveRecord}
           onClose={() => {

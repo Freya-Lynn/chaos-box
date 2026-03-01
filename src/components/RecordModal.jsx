@@ -12,7 +12,7 @@ const FONTS = [
   { id: 'huiwen', name: '汇文正楷', family: '"JingNanFangKaoTi", cursive' },
 ];
 
-export default function RecordModal({ record, allTags, tagHierarchy, parentTagList, tagColors, onSave, onClose }) {
+export default function RecordModal({ record, allTags, tagColors, onSave, onClose }) {
   const [text, setText] = useState(record?.text || '');
   const [images, setImages] = useState(record?.images || []);
   const [audios, setAudios] = useState(record?.audios || []);
@@ -31,6 +31,7 @@ export default function RecordModal({ record, allTags, tagHierarchy, parentTagLi
   const timerRef = useRef(null);
   const fileInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
+  const inlineImageInputRef = useRef(null);
   const editorRef = useRef(null);
 
   useEffect(() => {
@@ -55,7 +56,15 @@ export default function RecordModal({ record, allTags, tagHierarchy, parentTagLi
           if (blob) {
             const reader = new FileReader();
             reader.onload = (event) => {
-              setImages(prev => [...prev, event.target.result]);
+              const editor = editorRef.current;
+              const isEditorFocused = editor && document.activeElement === editor;
+              
+              if (isEditorFocused) {
+                const imgHtml = `<img src="${event.target.result}" style="max-width: 150px; height: auto; border-radius: 4px; margin: 4px; cursor: pointer; display: inline-block; vertical-align: middle;" />`;
+                document.execCommand('insertHTML', false, imgHtml);
+              } else {
+                setImages(prev => [...prev, event.target.result]);
+              }
             };
             reader.readAsDataURL(blob);
           }
@@ -136,6 +145,23 @@ export default function RecordModal({ record, allTags, tagHierarchy, parentTagLi
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  const handleInlineImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const imgHtml = `<img src="${event.target.result}" style="max-width: 150px; height: auto; border-radius: 4px; margin: 4px; cursor: pointer; display: inline-block; vertical-align: middle;" />`;
+      execCommand('insertHTML', imgHtml);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const insertInlineImage = () => {
+    inlineImageInputRef.current?.click();
   };
 
   const removeImage = (index) => {
@@ -270,7 +296,8 @@ export default function RecordModal({ record, allTags, tagHierarchy, parentTagLi
   const handleSave = () => {
     const editorText = editorRef.current?.innerHTML || '';
     const plainText = editorRef.current?.innerText || '';
-    if (!plainText.trim() && images.length === 0 && audios.length === 0 && attachments.length === 0) {
+    const hasInlineImage = editorText.includes('<img');
+    if (!plainText.trim() && images.length === 0 && audios.length === 0 && attachments.length === 0 && !hasInlineImage) {
       alert('请至少添加一些内容');
       return;
     }
@@ -319,6 +346,7 @@ export default function RecordModal({ record, allTags, tagHierarchy, parentTagLi
               <div className="toolbar-divider"></div>
               <button type="button" title="有序列表 (1. 2. 3.)" onClick={() => execCommand('insertOrderedList')} style={{ width: '28px', height: '28px', fontWeight: 600 }}>1.</button>
               <button type="button" title="无序列表 (•)" onClick={() => execCommand('insertUnorderedList')} style={{ width: '28px', height: '28px', fontWeight: 600 }}>•</button>
+              <button type="button" title="插入图片到文字中" onClick={insertInlineImage} style={{ width: '28px', height: '28px', fontSize: '16px' }}>🖼</button>
               <div className="toolbar-divider"></div>
               <select 
                 className="font-select"
@@ -334,16 +362,22 @@ export default function RecordModal({ record, allTags, tagHierarchy, parentTagLi
                   </option>
                 ))}
               </select>
+              <input
+                ref={inlineImageInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleInlineImageUpload}
+              />
             </div>
             <div
               ref={editorRef}
               className="editor-content"
               contentEditable
-              placeholder="记录点什么... (可直接 Ctrl+V 粘贴图片)"
+              placeholder="记录点什么... (可直接 Ctrl+V 粘贴图片，或点击 🖼 插入图片)"
               suppressContentEditableWarning
               onMouseUp={() => updateActiveFormats(true)}
               onKeyUp={() => updateActiveFormats(true)}
-              onPaste={handlePaste}
             ></div>
           </div>
 
@@ -494,44 +528,23 @@ export default function RecordModal({ record, allTags, tagHierarchy, parentTagLi
               />
             </div>
             
-            {parentTagList && parentTagList.length > 0 && (
-              <div className="tag-suggestions">
-                {parentTagList.map(parentTag => (
-                  <div key={parentTag} className="tag-parent-group" style={{ marginBottom: '8px' }}>
-                    <button
-                      className={`tag ${selectedTags.includes(parentTag) ? 'active' : ''} tag-color-${tagColors[parentTag] ?? 0}`}
-                      onClick={() => {
-                        if (selectedTags.includes(parentTag)) {
-                          removeTag(parentTag);
-                        } else {
-                          addTag(parentTag);
-                        }
-                      }}
-                      style={{ fontWeight: 600, marginBottom: '4px' }}
-                    >
-                      {selectedTags.includes(parentTag) ? '✓ ' : '+ '}{parentTag}
-                    </button>
-                    {tagHierarchy && tagHierarchy[parentTag] && tagHierarchy[parentTag].length > 0 && (
-                      <div style={{ marginLeft: '12px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {tagHierarchy[parentTag].map(childTag => (
-                          <button
-                            key={childTag}
-                            className={`tag ${selectedTags.includes(childTag) ? 'active' : ''} tag-color-${tagColors[childTag] ?? 0}`}
-                            onClick={() => {
-                              if (selectedTags.includes(childTag)) {
-                                removeTag(childTag);
-                              } else {
-                                addTag(childTag);
-                              }
-                            }}
-                            style={{ fontSize: '11px', padding: '2px 8px' }}
-                          >
-                            {selectedTags.includes(childTag) ? '✓ ' : '+ '}{childTag.split('/')[1]}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+            {allTags && allTags.length > 0 && (
+              <div className="tag-suggestions" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
+                {allTags.map(tag => (
+                  <button
+                    key={tag}
+                    className={`tag ${selectedTags.includes(tag) ? 'active' : ''} tag-color-${tagColors[tag] ?? Math.floor(Math.random() * 8)}`}
+                    onClick={() => {
+                      if (selectedTags.includes(tag)) {
+                        removeTag(tag);
+                      } else {
+                        addTag(tag);
+                      }
+                    }}
+                    style={{ fontSize: '11px', padding: '2px 8px' }}
+                  >
+                    {selectedTags.includes(tag) ? '✓ ' : '+ '}{tag}
+                  </button>
                 ))}
               </div>
             )}

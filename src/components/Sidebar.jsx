@@ -12,7 +12,7 @@ export default function Sidebar({
   wishlistCount, view, onViewChange,
   showWishlist, onShowWishlistChange,
   onExportData, onImportData,
-  tagHierarchy, parentTagList, activeTag, onTagClick,
+  allTags, activeTag, onTagClick,
   onEditTag, onDeleteTag
 }) {
   const [isDark, setIsDark] = useState(() => {
@@ -21,18 +21,75 @@ export default function Sidebar({
   const [editingTag, setEditingTag] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [currentScheme, setCurrentScheme] = useState(() => {
-    return parseInt(localStorage.getItem('chaos-box-color-scheme') || '0');
+    const saved = localStorage.getItem('chaos-box-color-scheme');
+    const parsed = parseInt(saved || '0', 10);
+    return isNaN(parsed) ? 0 : parsed;
   });
 
-  useEffect(() => {
-    document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    localStorage.setItem('chaos-box-theme-mode', isDark ? 'dark' : 'light');
-  }, [isDark]);
+  const buildTree = (tags) => {
+    const tree = {};
+    tags.forEach(tag => {
+      const parts = tag.split('/');
+      let current = tree;
+      parts.forEach((part, idx) => {
+        if (!current[part]) {
+          current[part] = { _tags: [], _level: idx };
+        }
+        if (idx === parts.length - 1) {
+          current[part]._tags.push(tag);
+        }
+        current = current[part];
+      });
+    });
+    return tree;
+  };
+
+  const renderTree = (node, level = 0) => {
+    return Object.entries(node).map(([key, value]) => {
+      if (key.startsWith('_')) return null;
+      
+      const hasChildren = Object.keys(value).some(k => !k.startsWith('_'));
+      const marginLeft = level * 20;
+      const fontSize = level === 0 ? 13 : Math.max(11, 13 - level);
+      
+      return (
+        <div key={key + level}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+            <button
+              onClick={() => onTagClick && onTagClick(value._tags?.[0] || key)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                flex: 1,
+                padding: '8px 10px',
+                borderRadius: '8px',
+                fontSize: fontSize,
+                fontWeight: level === 0 ? 600 : 400,
+                background: activeTag === (value._tags?.[0] || key) ? 'var(--highlight)' : 'transparent',
+                color: activeTag === (value._tags?.[0] || key) ? 'white' : '#444',
+                border: 'none',
+                cursor: 'pointer',
+                textAlign: 'left',
+                marginLeft
+              }}
+            >
+              {level === 0 ? '📁 ' : '📄 '}
+              {key}
+            </button>
+          </div>
+          {hasChildren && renderTree(value, level + 1)}
+        </div>
+      );
+    });
+  };
+
+  const tree = buildTree(allTags || []);
 
   useEffect(() => {
     const scheme = colorSchemes[currentScheme];
     const root = document.documentElement;
-    if (scheme && !isDark) {
+    if (scheme) {
       root.style.setProperty('--bg-page', scheme.bg);
       root.style.setProperty('--sidebar-bg', scheme.sidebar);
       root.style.setProperty('--highlight', scheme.highlight);
@@ -153,99 +210,12 @@ export default function Sidebar({
         </button>
       </nav>
 
-      {parentTagList && parentTagList.length > 0 && view !== 'vault' && (
+      {allTags && allTags.length > 0 && view !== 'vault' && (
         <div style={{ padding: '12px', overflow: 'auto', flex: 1 }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: '#888', marginBottom: '8px', padding: '0 4px' }}>
             标签
           </div>
-          {parentTagList.map(parentTag => (
-            <div key={parentTag} style={{ marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {editingTag === parentTag ? (
-                  <input
-                    type="text"
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={() => { onEditTag(parentTag, editValue); setEditingTag(null); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { onEditTag(parentTag, editValue); setEditingTag(null); }}}
-                    autoFocus
-                    style={{ flex: 1, padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--highlight)', fontSize: '13px' }}
-                  />
-                ) : (
-                  <button
-                    onClick={() => onTagClick && onTagClick(parentTag)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      flex: 1,
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      background: activeTag === parentTag ? 'var(--highlight)' : 'transparent',
-                      color: activeTag === parentTag ? 'white' : '#444',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                  >
-                    📁 {parentTag}
-                  </button>
-                )}
-                {!editingTag && (
-                  <>
-                    <button onClick={() => { setEditingTag(parentTag); setEditValue(parentTag); }} style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '12px' }}>✏️</button>
-                    <button onClick={() => onDeleteTag && onDeleteTag(parentTag)} style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '12px' }}>🗑️</button>
-                  </>
-                )}
-              </div>
-              {tagHierarchy && tagHierarchy[parentTag] && tagHierarchy[parentTag].length > 0 && (
-                <div style={{ marginLeft: '20px', marginTop: '4px' }}>
-                  {tagHierarchy[parentTag].map(childTag => (
-                    <div key={childTag} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      {editingTag === childTag ? (
-                        <input
-                          type="text"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={() => { onEditTag(childTag, editValue); setEditingTag(null); }}
-                          onKeyDown={(e) => { if (e.key === 'Enter') { onEditTag(childTag, editValue); setEditingTag(null); }}}
-                          autoFocus
-                          style={{ flex: 1, padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--highlight)', fontSize: '12px', marginLeft: '20px' }}
-                        />
-                      ) : (
-                        <button
-                          onClick={() => onTagClick && onTagClick(childTag)}
-                          style={{
-                            display: 'block',
-                            flex: 1,
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            background: activeTag === childTag ? 'var(--highlight)' : 'transparent',
-                            color: activeTag === childTag ? 'white' : '#666',
-                            border: 'none',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            marginBottom: '2px'
-                          }}
-                        >
-                          📄 {childTag.split('/')[1]}
-                        </button>
-                      )}
-                      {!editingTag && (
-                        <>
-                          <button onClick={() => { setEditingTag(childTag); setEditValue(childTag.split('/')[1] || childTag); }} style={{ padding: '2px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '10px' }}>✏️</button>
-                          <button onClick={() => onDeleteTag && onDeleteTag(childTag)} style={{ padding: '2px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '10px' }}>🗑️</button>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+          {renderTree(tree)}
         </div>
       )}
       
