@@ -40,6 +40,35 @@ export default function RecordModal({ record, allTags, tagHierarchy, parentTagLi
   }, []);
 
   useEffect(() => {
+    const handleGlobalPaste = (e) => {
+      const clipboardData = e.clipboardData || e.nativeEvent?.clipboardData;
+      if (!clipboardData) return;
+      
+      const items = clipboardData.items;
+      if (!items) return;
+      
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type && item.type.startsWith('image/')) {
+          e.preventDefault();
+          const blob = item.getAsFile();
+          if (blob) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              setImages(prev => [...prev, event.target.result]);
+            };
+            reader.readAsDataURL(blob);
+          }
+          break;
+        }
+      }
+    };
+
+    document.addEventListener('paste', handleGlobalPaste);
+    return () => document.removeEventListener('paste', handleGlobalPaste);
+  }, []);
+
+  useEffect(() => {
     if (editorRef.current && record?.text) {
       editorRef.current.innerHTML = record.text;
     }
@@ -158,6 +187,30 @@ export default function RecordModal({ record, allTags, tagHierarchy, parentTagLi
 
   const removeAudio = (index) => {
     setAudios(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePaste = (e) => {
+    const clipboardData = e.clipboardData || e.nativeEvent.clipboardData;
+    if (!clipboardData) return;
+    
+    const items = clipboardData.items;
+    if (!items) return;
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type && item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        if (blob) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            setImages(prev => [...prev, event.target.result]);
+          };
+          reader.readAsDataURL(blob);
+        }
+        break;
+      }
+    }
   };
 
   const handleAttachmentUpload = (e) => {
@@ -286,10 +339,11 @@ export default function RecordModal({ record, allTags, tagHierarchy, parentTagLi
               ref={editorRef}
               className="editor-content"
               contentEditable
-              placeholder="记录点什么..."
+              placeholder="记录点什么... (可直接 Ctrl+V 粘贴图片)"
               suppressContentEditableWarning
               onMouseUp={() => updateActiveFormats(true)}
               onKeyUp={() => updateActiveFormats(true)}
+              onPaste={handlePaste}
             ></div>
           </div>
 
